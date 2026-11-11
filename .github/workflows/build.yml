@@ -1,0 +1,44 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack project
+        run: unzip -q dm-only-project.zip -d src
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
+      - name: Build
+        working-directory: src
+        run: gradle assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp src/app/build/outputs/apk/debug/app-debug.apk dm-only.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dm-only-apk
+          path: dm-only.apk
+
+      - name: Publish as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "build-${{ github.run_number }}" dm-only.apk --title "DM Only build ${{ github.run_number }}" --notes "Install dm-only.apk on your phone."
